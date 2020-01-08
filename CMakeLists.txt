@@ -17,9 +17,30 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+find_package(gazebo_dev REQUIRED)
+find_package(gazebo_ros REQUIRED)
+find_package(rclcpp REQUIRED)
+# custom packages
+find_package(rover_msgs REQUIRED)
+
+include_directories(include
+  ${gazebo_dev_INCLUDE_DIRS}
+  ${gazebo_ros_INCLUDE_DIRS}
+  ${rover_msgs_INCLUDE_DIRS})
+
+link_directories(${gazebo_dev_LIBRARY_DIRS})
+
+add_library(rover_gazebo_joint_plugin SHARED
+  src/rover_gazebo_joint_plugin.cpp)
+
+ament_target_dependencies(rover_gazebo_joint_plugin
+  "gazebo_dev"
+  "gazebo_ros"
+  "rover_msgs"
+  "rclcpp"
+  "ament_index_cpp")
+ament_export_libraries(rover_gazebo_joint_plugin)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -33,3 +54,12 @@ if(BUILD_TESTING)
 endif()
 
 ament_package()
+
+install(DIRECTORY include/
+  DESTINATION include)
+
+install(TARGETS
+  rover_gazebo_joint_plugin
+  ARCHIVE DESTINATION lib 
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)
