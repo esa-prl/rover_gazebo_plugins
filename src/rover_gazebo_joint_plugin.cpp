@@ -116,7 +116,7 @@ void RoverGazeboJointPlugin::Load(gazebo::physics::ModelPtr _model, sdf::Element
 
     // Subscribe to joint command array topic
     impl_->joint_cmd_array_sub_ = impl_->ros_node_->create_subscription<rover_msgs::msg::JointCommandArray>(
-        "rover_joint_cmds", rclcpp::QoS(rclcpp::KeepLast(1)),
+        "joint_cmds", rclcpp::QoS(rclcpp::KeepLast(1)),
         std::bind(&RoverGazeboJointPluginPrivate::OnJointCmdArray, impl_.get(), std::placeholders::_1));
 
     // Listen to the update event (broadcast every simulation iteration)
