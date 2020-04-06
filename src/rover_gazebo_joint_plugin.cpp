@@ -168,7 +168,7 @@ void RoverGazeboJointPluginPrivate::OnJointCmdArray(rover_msgs::msg::JointComman
         }
         else
         {
-            RCLCPP_WARN(ros_node_->get_logger(), "Undefined mode in joint command received: %s", cmd.mode);
+            RCLCPP_WARN(ros_node_->get_logger(), "Undefined mode in joint command received: %s", cmd.mode.c_str());
         }
     }
 }
