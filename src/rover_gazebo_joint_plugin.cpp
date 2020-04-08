@@ -75,10 +75,9 @@ void RoverGazeboJointPlugin::Load(gazebo::physics::ModelPtr _model, sdf::Element
     // Get the joint controller of the model
     impl_->joint_controller_ = impl_->model_->GetJointController();
 
-    // Reset all the joints to a zero position
+    // Read PID values from sdf
     // TODO:
     // - DO NOT RELY ON THE NAME
-
     ignition::math::Vector3d pid_deploy;
     if (_sdf->HasElement("pid_deploy"))
     {
@@ -112,6 +111,7 @@ void RoverGazeboJointPlugin::Load(gazebo::physics::ModelPtr _model, sdf::Element
         RCLCPP_WARN(impl_->ros_node_->get_logger(), "rover_gazebo_joint_plugin missing parameter pid_steer. Defaults to P: %f I: %f D: %f", pid_steer.X(), pid_steer.Y(), pid_steer.Z());
     }
 
+    // Add PID values to values to joint controllers
     for (auto const &pair : impl_->joint_controller_->GetJoints())
     {
         auto name = pair.first;
