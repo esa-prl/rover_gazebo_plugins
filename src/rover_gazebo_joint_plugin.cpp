@@ -12,6 +12,8 @@
 #include <rover_msgs/msg/joint_command.hpp>
 #include <rover_msgs/msg/joint_command_array.hpp>
 
+#include <ignition/math/Rand.hh>
+
 namespace gazebo_plugins
 {
 class RoverGazeboJointPluginPrivate
@@ -76,7 +78,40 @@ void RoverGazeboJointPlugin::Load(gazebo::physics::ModelPtr _model, sdf::Element
     // Reset all the joints to a zero position
     // TODO:
     // - DO NOT RELY ON THE NAME
-    // - Read PID parameters from config file
+
+    ignition::math::Vector3d pid_deploy;
+    if (_sdf->HasElement("pid_deploy"))
+    {
+        pid_deploy = _sdf->GetElement("pid_deploy")->Get<ignition::math::Vector3d>();
+    }
+    else
+    {
+        pid_deploy = ignition::math::Vector3d(50.0, 0.1, 0.0);
+        RCLCPP_WARN(impl_->ros_node_->get_logger(), "rover_gazebo_joint_plugin missing parameter pid_deploy. Defaults to P: %f I: %f D: %f", pid_deploy.X(), pid_deploy.Y(), pid_deploy.Z());
+    }
+
+    ignition::math::Vector3d pid_drive;
+    if (_sdf->HasElement("pid_drive"))
+    {
+        pid_drive = _sdf->GetElement("pid_drive")->Get<ignition::math::Vector3d>();
+    }
+    else
+    {
+        pid_drive = ignition::math::Vector3d(5.0, 0.1, 0.0);
+        RCLCPP_WARN(impl_->ros_node_->get_logger(), "rover_gazebo_joint_plugin missing parameter pid_drive. Defaults to P: %f I: %f D: %f", pid_drive.X(), pid_drive.Y(), pid_drive.Z());
+    }
+
+    ignition::math::Vector3d pid_steer;
+    if (_sdf->HasElement("pid_steer"))
+    {
+        pid_steer = _sdf->GetElement("pid_steer")->Get<ignition::math::Vector3d>();
+    }
+    else
+    {
+        pid_steer = ignition::math::Vector3d(5.0, 0.1, 0.0);
+        RCLCPP_WARN(impl_->ros_node_->get_logger(), "rover_gazebo_joint_plugin missing parameter pid_steer. Defaults to P: %f I: %f D: %f", pid_steer.X(), pid_steer.Y(), pid_steer.Z());
+    }
+
     for (auto const &pair : impl_->joint_controller_->GetJoints())
     {
         auto name = pair.first;
@@ -84,21 +119,21 @@ void RoverGazeboJointPlugin::Load(gazebo::physics::ModelPtr _model, sdf::Element
 
         if (name.find("DEP") != std::string::npos)
         {
-            impl_->joint_controller_->SetPositionPID(name, gazebo::common::PID(50.0, 0.1, 0.0));
+            impl_->joint_controller_->SetPositionPID(name, gazebo::common::PID(pid_deploy.X(), pid_deploy.Y(), pid_deploy.Z()));
             impl_->joint_controller_->SetPositionTarget(name, 0.0);
-            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "PID DEP set on joint: %s", name.c_str());
+            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "PID DEP set on joint: %s to P: %f I: %f D: %f", name.c_str(), pid_deploy.X(), pid_deploy.Y(), pid_deploy.Z());
         }
         else if (name.find("DRV") != std::string::npos)
         {
-            impl_->joint_controller_->SetVelocityPID(name, gazebo::common::PID(5.0, 0.1, 0.0));
+            impl_->joint_controller_->SetVelocityPID(name, gazebo::common::PID(pid_drive.X(), pid_drive.Y(), pid_drive.Z()));
             impl_->joint_controller_->SetVelocityTarget(name, 0.0);
-            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "PID DRV set on joint: %s", name.c_str());
+            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "PID DRV set on joint: %s", name.c_str(), pid_drive.X(), pid_drive.Y(), pid_drive.Z());
         }
         else if (name.find("STR") != std::string::npos)
         {
-            impl_->joint_controller_->SetPositionPID(name, gazebo::common::PID(5.0, 0.1, 0.0));
+            impl_->joint_controller_->SetPositionPID(name, gazebo::common::PID(pid_steer.X(), pid_steer.Y(), pid_steer.Z()));
             impl_->joint_controller_->SetPositionTarget(name, 0.0);
-            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "PID STR set on joint: %s", name.c_str());
+            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "PID STR set on joint: %s", name.c_str(), pid_steer.X(), pid_steer.Y(), pid_steer.Z());
         }
     }
 
