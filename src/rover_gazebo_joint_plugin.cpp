@@ -122,17 +122,17 @@ namespace gazebo_plugins
         impl_->LoadPIDParametersFromSDF(_sdf);
 
         // Set the PIDs of the joints accordingly to the given parameters
-        for (auto const &pair : impl_->position_pid_parameters)
+        for (auto const &position_pid_parameter_element : impl_->position_pid_parameters)
         {
-            auto pid_identifier = pair.first;
-            auto parameters = pair.second;
+            auto pid_identifier = position_pid_parameter_element.first;
+            auto parameters = position_pid_parameter_element.second;
 
             RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Position PID parameter: %s, Values: %f %f %f", pid_identifier.c_str(), parameters.X(), parameters.Y(), parameters.Z());
 
-            for (auto const &pair : impl_->joint_controller_->GetJoints())
+            for (auto const &joint_element : impl_->joint_controller_->GetJoints())
             {
-                auto joint_name = pair.first;
-                auto joint = pair.second;
+                auto joint_name = joint_element.first;
+                auto joint = joint_element.second;
 
                 if (joint_name.find(pid_identifier.c_str()) != std::string::npos)
                 {
@@ -143,17 +143,17 @@ namespace gazebo_plugins
             }
         }
 
-        for (auto const &pair : impl_->velocity_pid_parameters)
+        for (auto const &velocity_pid_parameter_element : impl_->velocity_pid_parameters)
         {
-            auto pid_identifier = pair.first;
-            auto parameters = pair.second;
+            auto pid_identifier = velocity_pid_parameter_element.first;
+            auto parameters = velocity_pid_parameter_element.second;
 
             RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Velocity PID parameter: %s, Values: %f %f %f", pid_identifier.c_str(), parameters.X(), parameters.Y(), parameters.Z());
 
-            for (auto const &pair : impl_->joint_controller_->GetJoints())
+            for (auto const &joint_element : impl_->joint_controller_->GetJoints())
             {
-                auto joint_name = pair.first;
-                auto joint = pair.second;
+                auto joint_name = joint_element.first;
+                auto joint = joint_element.second;
 
                 if (joint_name.find(pid_identifier.c_str()) != std::string::npos)
                 {
@@ -218,7 +218,7 @@ namespace gazebo_plugins
             {
                 if (!joint_controller_->SetPositionTarget(model_->GetJoint(cmd.name)->GetScopedName(), cmd.value))
                 {
-                    RCLCPP_WARN(ros_node_->get_logger(), "Joint %s from recieved command was npt found in model.", cmd.name.c_str());
+                    RCLCPP_WARN(ros_node_->get_logger(), "Joint %s from received command was not found in model.", cmd.name.c_str());
                 }
             }
             else if (cmd.mode == "VELOCITY")
