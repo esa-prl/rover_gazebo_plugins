@@ -16,197 +16,224 @@
 
 namespace gazebo_plugins
 {
-class RoverGazeboJointPluginPrivate
-{
-public:
-    /// Callback to be called at every simulation iteration.
-    /// \param[in] _info Updated simulation info.
-    void OnUpdate(const gazebo::common::UpdateInfo &_info);
-
-    /// Callback when a joint command array is received
-    /// \param[in] _msg Array of joint commands.
-    void OnJointCmdArray(rover_msgs::msg::JointCommandArray::SharedPtr _msg);
-
-    /// A pointer to the GazeboROS node.
-    gazebo_ros::Node::SharedPtr ros_node_;
-
-    /// Subscriber to joint command arrays
-    rclcpp::Subscription<rover_msgs::msg::JointCommandArray>::SharedPtr joint_cmd_array_sub_;
-
-    /// Subscriber to joint commands
-    rclcpp::Subscription<rover_msgs::msg::JointCommand>::SharedPtr joint_cmd_sub_;
-
-    /// Connection to event called at every world iteration.
-    gazebo::event::ConnectionPtr update_connection_;
-
-    /// Pointer to model
-    gazebo::physics::ModelPtr model_;
-
-    /// Update period in seconds.
-    double update_period_;
-
-    /// Last update time.
-    gazebo::common::Time last_update_time_;
-
-    /// Protect variables accessed on callbacks.
-    std::mutex lock_;
-
-    /// Joint controller that is managing controllers of all model joints
-    gazebo::physics::JointControllerPtr joint_controller_;
-};
-
-RoverGazeboJointPlugin::RoverGazeboJointPlugin()
-    : impl_(std::make_unique<RoverGazeboJointPluginPrivate>())
-{
-}
-
-RoverGazeboJointPlugin::~RoverGazeboJointPlugin()
-{
-}
-
-void RoverGazeboJointPlugin::Load(gazebo::physics::ModelPtr _model, sdf::ElementPtr _sdf)
-{
-    // Get the model
-    impl_->model_ = _model;
-
-    // Initialize ROS node
-    impl_->ros_node_ = gazebo_ros::Node::Get(_sdf);
-
-    // Get the joint controller of the model
-    impl_->joint_controller_ = impl_->model_->GetJointController();
-
-    // Read PID values from sdf
-    // TODO:
-    // - DO NOT RELY ON THE NAME
-    ignition::math::Vector3d pid_deploy;
-    if (_sdf->HasElement("pid_deploy"))
+    class RoverGazeboJointPluginPrivate
     {
-        pid_deploy = _sdf->GetElement("pid_deploy")->Get<ignition::math::Vector3d>();
-    }
-    else
+    public:
+        /// Callback to be called at every simulation iteration.
+        /// \param[in] _info Updated simulation info.
+        void OnUpdate(const gazebo::common::UpdateInfo &_info);
+
+        /// Callback when a joint command array is received
+        /// \param[in] _msg Array of joint commands.
+        void OnJointCmdArray(rover_msgs::msg::JointCommandArray::SharedPtr _msg);
+
+        /// A pointer to the GazeboROS node.
+        gazebo_ros::Node::SharedPtr ros_node_;
+
+        /// Subscriber to joint command arrays
+        rclcpp::Subscription<rover_msgs::msg::JointCommandArray>::SharedPtr joint_cmd_array_sub_;
+
+        /// Subscriber to joint commands
+        rclcpp::Subscription<rover_msgs::msg::JointCommand>::SharedPtr joint_cmd_sub_;
+
+        /// Connection to event called at every world iteration.
+        gazebo::event::ConnectionPtr update_connection_;
+
+        /// Pointer to model
+        gazebo::physics::ModelPtr model_;
+
+        /// Update period in seconds.
+        double update_period_;
+
+        /// Last update time.
+        gazebo::common::Time last_update_time_;
+
+        /// Protect variables accessed on callbacks.
+        std::mutex lock_;
+
+        /// Joint controller that is managing controllers of all model joints
+        gazebo::physics::JointControllerPtr joint_controller_;
+
+        /// Callback to be called at every simulation iteration.
+        /// \param[in] _sdf Pointer to sdf parent containing children with PID parameters.
+        bool LoadPIDParametersFromSDF(const sdf::ElementPtr _sdf);
+
+        /// Position pid parameters read from sdf
+        std::map<std::string, ignition::math::Vector3d> position_pid_parameters;
+
+        /// Velocity pid parameters read from sdf
+        std::map<std::string, ignition::math::Vector3d> velocity_pid_parameters;
+    };
+
+    RoverGazeboJointPlugin::RoverGazeboJointPlugin()
+        : impl_(std::make_unique<RoverGazeboJointPluginPrivate>())
     {
-        pid_deploy = ignition::math::Vector3d(50.0, 0.1, 0.0);
-        RCLCPP_WARN(impl_->ros_node_->get_logger(), "rover_gazebo_joint_plugin missing parameter pid_deploy. Defaults to P: %f I: %f D: %f", pid_deploy.X(), pid_deploy.Y(), pid_deploy.Z());
     }
 
-    ignition::math::Vector3d pid_drive;
-    if (_sdf->HasElement("pid_drive"))
+    RoverGazeboJointPlugin::~RoverGazeboJointPlugin()
     {
-        pid_drive = _sdf->GetElement("pid_drive")->Get<ignition::math::Vector3d>();
-    }
-    else
-    {
-        pid_drive = ignition::math::Vector3d(5.0, 0.1, 0.0);
-        RCLCPP_WARN(impl_->ros_node_->get_logger(), "rover_gazebo_joint_plugin missing parameter pid_drive. Defaults to P: %f I: %f D: %f", pid_drive.X(), pid_drive.Y(), pid_drive.Z());
     }
 
-    ignition::math::Vector3d pid_steer;
-    if (_sdf->HasElement("pid_steer"))
+    bool RoverGazeboJointPluginPrivate::LoadPIDParametersFromSDF(const sdf::ElementPtr _sdf)
     {
-        pid_steer = _sdf->GetElement("pid_steer")->Get<ignition::math::Vector3d>();
-    }
-    else
-    {
-        pid_steer = ignition::math::Vector3d(5.0, 0.1, 0.0);
-        RCLCPP_WARN(impl_->ros_node_->get_logger(), "rover_gazebo_joint_plugin missing parameter pid_steer. Defaults to P: %f I: %f D: %f", pid_steer.X(), pid_steer.Y(), pid_steer.Z());
-    }
+        GZ_ASSERT(_sdf, "_sdf element is null");
 
-    // Add PID values to values to joint controllers
-    for (auto const &pair : impl_->joint_controller_->GetJoints())
-    {
-        auto name = pair.first;
-        auto joint = pair.second;
+        // Get the position PID parameters
+        sdf::ElementPtr position_pid_group = _sdf->GetElement("position_pids");
+        sdf::ElementPtr position_pid = position_pid_group->GetFirstElement();
 
-        if (name.find("DEP") != std::string::npos)
+        while (position_pid)
         {
-            impl_->joint_controller_->SetPositionPID(name, gazebo::common::PID(pid_deploy.X(), pid_deploy.Y(), pid_deploy.Z()));
-            impl_->joint_controller_->SetPositionTarget(name, 0.0);
-            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "PID DEP set on joint: %s to P: %f I: %f D: %f", name.c_str(), pid_deploy.X(), pid_deploy.Y(), pid_deploy.Z());
+            auto pid_parameters = position_pid->Get<ignition::math::Vector3d>();
+            auto pid_name = position_pid->GetName();
+            this->position_pid_parameters.insert(std::pair<std::string, ignition::math::Vector3d>(pid_name, pid_parameters));
+
+            position_pid = position_pid->GetNextElement();
         }
-        else if (name.find("DRV") != std::string::npos)
+
+        // Get the velocity PID parameters
+        sdf::ElementPtr velocity_pid_group = _sdf->GetElement("velocity_pids");
+        sdf::ElementPtr velocity_pid = velocity_pid_group->GetFirstElement();
+
+        while (velocity_pid)
         {
-            impl_->joint_controller_->SetVelocityPID(name, gazebo::common::PID(pid_drive.X(), pid_drive.Y(), pid_drive.Z()));
-            impl_->joint_controller_->SetVelocityTarget(name, 0.0);
-            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "PID DRV set on joint: %s", name.c_str(), pid_drive.X(), pid_drive.Y(), pid_drive.Z());
+            auto pid_parameters = velocity_pid->Get<ignition::math::Vector3d>();
+            auto pid_name = velocity_pid->GetName();
+            this->velocity_pid_parameters.insert(std::pair<std::string, ignition::math::Vector3d>(pid_name, pid_parameters));
+
+            velocity_pid = velocity_pid->GetNextElement();
         }
-        else if (name.find("STR") != std::string::npos)
+
+        return true;
+    }
+
+    void RoverGazeboJointPlugin::Load(gazebo::physics::ModelPtr _model, sdf::ElementPtr _sdf)
+    {
+        // Get the model
+        impl_->model_ = _model;
+
+        // Initialize ROS node
+        impl_->ros_node_ = gazebo_ros::Node::Get(_sdf);
+
+        // Get the joint controller of the model
+        impl_->joint_controller_ = impl_->model_->GetJointController();
+
+        // Load all the parameters from the sdf
+        impl_->LoadPIDParametersFromSDF(_sdf);
+
+        // Set the PIDs of the joints accordingly to the given parameters
+        for (auto const &pair : impl_->position_pid_parameters)
         {
-            impl_->joint_controller_->SetPositionPID(name, gazebo::common::PID(pid_steer.X(), pid_steer.Y(), pid_steer.Z()));
-            impl_->joint_controller_->SetPositionTarget(name, 0.0);
-            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "PID STR set on joint: %s", name.c_str(), pid_steer.X(), pid_steer.Y(), pid_steer.Z());
-        }
-    }
+            auto pid_identifier = pair.first;
+            auto parameters = pair.second;
 
-    // Update rate
-    auto update_rate = _sdf->Get<double>("update_rate", 100.0).first;
-    if (update_rate > 0.0)
-    {
-        impl_->update_period_ = 1.0 / update_rate;
-    }
-    else
-    {
-        impl_->update_period_ = 0.0;
-    }
-    impl_->last_update_time_ = _model->GetWorld()->SimTime();
+            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Position PID parameter: %s, Values: %f %f %f", pid_identifier.c_str(), parameters.X(), parameters.Y(), parameters.Z());
 
-    // Subscribe to joint command array topic
-    impl_->joint_cmd_array_sub_ = impl_->ros_node_->create_subscription<rover_msgs::msg::JointCommandArray>(
-        "joint_cmds", rclcpp::QoS(rclcpp::KeepLast(1)),
-        std::bind(&RoverGazeboJointPluginPrivate::OnJointCmdArray, impl_.get(), std::placeholders::_1));
-
-    // Listen to the update event (broadcast every simulation iteration)
-    impl_->update_connection_ = gazebo::event::Events::ConnectWorldUpdateBegin(
-        std::bind(&RoverGazeboJointPluginPrivate::OnUpdate, impl_.get(), std::placeholders::_1));
-}
-
-void RoverGazeboJointPlugin::Reset()
-{
-    impl_->last_update_time_ = impl_->model_->GetWorld()->SimTime();
-    impl_->joint_controller_->Reset();
-}
-
-void RoverGazeboJointPluginPrivate::OnUpdate(const gazebo::common::UpdateInfo &_info)
-{
-    std::lock_guard<std::mutex> lock(lock_);
-
-    // Check for update constraints
-    double seconds_since_last_update = (_info.simTime - last_update_time_).Double();
-    if (seconds_since_last_update < update_period_)
-    {
-        return;
-    }
-
-    // Update all joint controllers
-    joint_controller_->Update();
-}
-
-void RoverGazeboJointPluginPrivate::OnJointCmdArray(rover_msgs::msg::JointCommandArray::SharedPtr _msg)
-{
-    std::lock_guard<std::mutex> scoped_lock(lock_);
-
-    // Iterate over received joint command array and set controller targets
-    for (auto const cmd : _msg->joint_command_array)
-    {
-        if (cmd.mode == "POSITION")
-        {
-            if (!joint_controller_->SetPositionTarget(model_->GetJoint(cmd.name)->GetScopedName(), cmd.value))
+            for (auto const &pair : impl_->joint_controller_->GetJoints())
             {
-                RCLCPP_WARN(ros_node_->get_logger(), "Joint %s from recieved command was npt found in model.", cmd.name.c_str());
+                auto joint_name = pair.first;
+                auto joint = pair.second;
+
+                if (joint_name.find(pid_identifier.c_str()) != std::string::npos)
+                {
+                    impl_->joint_controller_->SetPositionPID(joint_name, gazebo::common::PID(parameters.X(), parameters.Y(), parameters.Z()));
+                    impl_->joint_controller_->SetPositionTarget(joint_name, 0.0);
+                    RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Set position PID on joint: %s to P: %f I: %f D: %f", joint_name.c_str(), parameters.X(), parameters.Y(), parameters.Z());
+                }
             }
         }
-        else if (cmd.mode == "VELOCITY")
+
+        for (auto const &pair : impl_->velocity_pid_parameters)
         {
-            if (!joint_controller_->SetVelocityTarget(model_->GetJoint(cmd.name)->GetScopedName(), cmd.value))
+            auto pid_identifier = pair.first;
+            auto parameters = pair.second;
+
+            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Velocity PID parameter: %s, Values: %f %f %f", pid_identifier.c_str(), parameters.X(), parameters.Y(), parameters.Z());
+
+            for (auto const &pair : impl_->joint_controller_->GetJoints())
             {
-                RCLCPP_WARN(ros_node_->get_logger(), "Joint %s from received command was not found in model.", cmd.name.c_str());
+                auto joint_name = pair.first;
+                auto joint = pair.second;
+
+                if (joint_name.find(pid_identifier.c_str()) != std::string::npos)
+                {
+                    impl_->joint_controller_->SetVelocityPID(joint_name, gazebo::common::PID(parameters.X(), parameters.Y(), parameters.Z()));
+                    impl_->joint_controller_->SetVelocityTarget(joint_name, 0.0);
+                    RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Set velocity PID on joint: %s to P: %f I: %f D: %f", joint_name.c_str(), parameters.X(), parameters.Y(), parameters.Z());
+                }
             }
+        }
+
+        // Update rate
+        auto update_rate = _sdf->Get<double>("update_rate", 100.0).first;
+        if (update_rate > 0.0)
+        {
+            impl_->update_period_ = 1.0 / update_rate;
         }
         else
         {
-            RCLCPP_WARN(ros_node_->get_logger(), "Undefined mode in joint command received: %s", cmd.mode.c_str());
+            impl_->update_period_ = 0.0;
+        }
+        impl_->last_update_time_ = _model->GetWorld()->SimTime();
+
+        // Subscribe to joint command array topic
+        impl_->joint_cmd_array_sub_ = impl_->ros_node_->create_subscription<rover_msgs::msg::JointCommandArray>(
+            "joint_cmds", rclcpp::QoS(rclcpp::KeepLast(1)),
+            std::bind(&RoverGazeboJointPluginPrivate::OnJointCmdArray, impl_.get(), std::placeholders::_1));
+
+        // Listen to the update event (broadcast every simulation iteration)
+        impl_->update_connection_ = gazebo::event::Events::ConnectWorldUpdateBegin(
+            std::bind(&RoverGazeboJointPluginPrivate::OnUpdate, impl_.get(), std::placeholders::_1));
+    }
+
+    void RoverGazeboJointPlugin::Reset()
+    {
+        impl_->last_update_time_ = impl_->model_->GetWorld()->SimTime();
+        impl_->joint_controller_->Reset();
+    }
+
+    void RoverGazeboJointPluginPrivate::OnUpdate(const gazebo::common::UpdateInfo &_info)
+    {
+        std::lock_guard<std::mutex> lock(lock_);
+
+        // Check for update constraints
+        double seconds_since_last_update = (_info.simTime - last_update_time_).Double();
+        if (seconds_since_last_update < update_period_)
+        {
+            return;
+        }
+
+        // Update all joint controllers
+        joint_controller_->Update();
+    }
+
+    void RoverGazeboJointPluginPrivate::OnJointCmdArray(rover_msgs::msg::JointCommandArray::SharedPtr _msg)
+    {
+        std::lock_guard<std::mutex> scoped_lock(lock_);
+
+        // Iterate over received joint command array and set controller targets
+        for (auto const cmd : _msg->joint_command_array)
+        {
+            if (cmd.mode == "POSITION")
+            {
+                if (!joint_controller_->SetPositionTarget(model_->GetJoint(cmd.name)->GetScopedName(), cmd.value))
+                {
+                    RCLCPP_WARN(ros_node_->get_logger(), "Joint %s from recieved command was npt found in model.", cmd.name.c_str());
+                }
+            }
+            else if (cmd.mode == "VELOCITY")
+            {
+                if (!joint_controller_->SetVelocityTarget(model_->GetJoint(cmd.name)->GetScopedName(), cmd.value))
+                {
+                    RCLCPP_WARN(ros_node_->get_logger(), "Joint %s from received command was not found in model.", cmd.name.c_str());
+                }
+            }
+            else
+            {
+                RCLCPP_WARN(ros_node_->get_logger(), "Undefined mode in joint command received: %s", cmd.mode.c_str());
+            }
         }
     }
-}
 
-GZ_REGISTER_MODEL_PLUGIN(RoverGazeboJointPlugin)
+    GZ_REGISTER_MODEL_PLUGIN(RoverGazeboJointPlugin)
 } // namespace gazebo_plugins

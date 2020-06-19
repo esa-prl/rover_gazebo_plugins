@@ -6,6 +6,41 @@
 namespace gazebo_plugins
 {
 class RoverGazeboJointPluginPrivate;
+/// Set the PID parameters of joints
+///
+/// The plugin iterates over all joints
+/// and sets the PID if the joint name contains the PID identifier.
+/// The order of the parameters matter, if you define first the PID parameters 
+/// for a group of joints and afterwards for a specific joint of that group,
+/// the first value is overwritten with the second one.
+/**
+    Example usage:
+    \code{.xml}
+      <plugin name="rover_gazebo_joint_plugin" 
+            filename="librover_gazebo_joint_plugin.so">
+
+        <!-- Add a namespace -->
+        <ros>
+           <namespace>/my_namespace</namespace>
+        </ros>
+
+        <!-- Update rate in Hz -->
+        <update_rate>100.0</update_rate>
+        
+        <!-- Parameters for position PIDs -->
+        <position_pids>
+          <DEP>350.0 0.1 0.0</DEP>
+          <STR>20.0 0.1 0.0</STR>
+        </position_pids>
+
+        <!-- Parameters for velocity PIDs -->
+        <velocity_pids>
+          <DRV>5.0 0.1 0.0</DRV>
+        </velocity_pids>
+      </plugin
+  \endcode
+  
+*/
 
 class RoverGazeboJointPlugin : public gazebo::ModelPlugin
 {
