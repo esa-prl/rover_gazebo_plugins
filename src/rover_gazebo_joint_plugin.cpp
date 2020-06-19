@@ -126,6 +126,7 @@ namespace gazebo_plugins
         {
             auto pid_identifier = position_pid_parameter_element.first;
             auto parameters = position_pid_parameter_element.second;
+            bool parameter_has_joint = false;
 
             RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Position PID parameter: %s, Values: %f %f %f", pid_identifier.c_str(), parameters.X(), parameters.Y(), parameters.Z());
 
@@ -136,10 +137,16 @@ namespace gazebo_plugins
 
                 if (joint_name.find(pid_identifier.c_str()) != std::string::npos)
                 {
+                    parameter_has_joint = true;
                     impl_->joint_controller_->SetPositionPID(joint_name, gazebo::common::PID(parameters.X(), parameters.Y(), parameters.Z()));
                     impl_->joint_controller_->SetPositionTarget(joint_name, 0.0);
                     RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Set position PID on joint: %s to P: %f I: %f D: %f", joint_name.c_str(), parameters.X(), parameters.Y(), parameters.Z());
                 }
+            }
+
+            if(!parameter_has_joint)
+            {
+                RCLCPP_WARN(impl_->ros_node_->get_logger(), "No joint found for Parameter %s. Maybe there is a type or your config is not up to date.", pid_identifier.c_str());
             }
         }
 
@@ -147,6 +154,7 @@ namespace gazebo_plugins
         {
             auto pid_identifier = velocity_pid_parameter_element.first;
             auto parameters = velocity_pid_parameter_element.second;
+            bool parameter_has_joint = false;
 
             RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Velocity PID parameter: %s, Values: %f %f %f", pid_identifier.c_str(), parameters.X(), parameters.Y(), parameters.Z());
 
@@ -157,10 +165,15 @@ namespace gazebo_plugins
 
                 if (joint_name.find(pid_identifier.c_str()) != std::string::npos)
                 {
+                    parameter_has_joint = true;
                     impl_->joint_controller_->SetVelocityPID(joint_name, gazebo::common::PID(parameters.X(), parameters.Y(), parameters.Z()));
                     impl_->joint_controller_->SetVelocityTarget(joint_name, 0.0);
                     RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Set velocity PID on joint: %s to P: %f I: %f D: %f", joint_name.c_str(), parameters.X(), parameters.Y(), parameters.Z());
                 }
+            }
+            if(!parameter_has_joint)
+            {
+                RCLCPP_WARN(impl_->ros_node_->get_logger(), "No joint found for Parameter %s. Maybe there is a type or your config is not up to date.", pid_identifier.c_str());
             }
         }
 
