@@ -60,10 +60,12 @@ namespace gazebo_plugins
         bool LoadPIDParametersFromSDF(const sdf::ElementPtr _sdf);
 
         /// Position pid parameters read from sdf
-        std::map<std::string, ignition::math::Vector3d> position_pid_parameters;
+        // std::map<std::string, ignition::math::Vector3d> position_pid_parameters;
+        std::list<PIDParameter> position_pid_parameters;
 
         /// Velocity pid parameters read from sdf
-        std::map<std::string, ignition::math::Vector3d> velocity_pid_parameters;
+        // std::map<std::string, ignition::math::Vector3d> velocity_pid_parameters;
+        std::list<PIDParameter> velocity_pid_parameters;
     };
 
     RoverGazeboJointPlugin::RoverGazeboJointPlugin()
@@ -85,9 +87,26 @@ namespace gazebo_plugins
 
         while (position_pid)
         {
-            auto pid_parameters = position_pid->Get<ignition::math::Vector3d>();
-            auto pid_name = position_pid->GetName();
-            this->position_pid_parameters.insert(std::pair<std::string, ignition::math::Vector3d>(pid_name, pid_parameters));
+            // auto regex = position_pid->GetAttribute("regex");
+            // if (regex)
+            // {
+            //     RCLCPP_WARN(this->ros_node_->get_logger(), "Regex argument: %s", regex->GetAsString().c_str());
+            // }
+            
+
+            // auto pid_parameters = position_pid->Get<ignition::math::Vector3d>();
+            // auto pid_name = position_pid->GetName();
+            // this->position_pid_parameters.insert(std::pair<std::string, ignition::math::Vector3d>(pid_name, pid_parameters));
+
+            PIDParameter pid_parameter;
+            pid_parameter.identifier = position_pid->GetName();
+            pid_parameter.pid_values = position_pid->Get<ignition::math::Vector3d>();
+            if(position_pid->HasAttribute("regex"))
+            {
+                pid_parameter.regex = position_pid->GetAttribute("regex")->GetAsString(); 
+            }
+
+            this->position_pid_parameters.push_back(pid_parameter);
 
             position_pid = position_pid->GetNextElement();
         }
@@ -98,10 +117,21 @@ namespace gazebo_plugins
 
         while (velocity_pid)
         {
-            auto pid_parameters = velocity_pid->Get<ignition::math::Vector3d>();
-            auto pid_name = velocity_pid->GetName();
-            this->velocity_pid_parameters.insert(std::pair<std::string, ignition::math::Vector3d>(pid_name, pid_parameters));
+            // auto pid_parameters = velocity_pid->Get<ignition::math::Vector3d>();
+            // auto pid_name = velocity_pid->GetName();
+            // this->velocity_pid_parameters.insert(std::pair<std::string, ignition::math::Vector3d>(pid_name, pid_parameters));
 
+            PIDParameter pid_parameter;
+            pid_parameter.identifier = velocity_pid->GetName();
+            pid_parameter.pid_values = velocity_pid->Get<ignition::math::Vector3d>();
+            if(velocity_pid->HasAttribute("regex"))
+            {
+                pid_parameter.regex = velocity_pid->GetAttribute("regex")->GetAsString(); 
+            }
+
+            this->velocity_pid_parameters.push_back(pid_parameter);
+
+ 
             velocity_pid = velocity_pid->GetNextElement();
         }
 
@@ -125,13 +155,18 @@ namespace gazebo_plugins
         // Set the PIDs of the joints accordingly to the given parameters
         for (auto const &position_pid_parameter_element : impl_->position_pid_parameters)
         {
-            auto const pid_identifier = position_pid_parameter_element.first;
-            auto const regex = std::regex("(^|_|:)"+pid_identifier+"($|_)");
+            auto const pid_identifier = position_pid_parameter_element.identifier;
+            auto const pid_values = position_pid_parameter_element.pid_values;
 
-            auto const parameters = position_pid_parameter_element.second;
+            auto regex = std::regex("(^|_|:)"+pid_identifier+"($|_)");
+            if (!position_pid_parameter_element.regex.empty())
+            {
+                regex = std::regex(position_pid_parameter_element.regex);
+            }
+            
             bool parameter_has_joint = false;
 
-            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Position PID parameter: %s, Values: %f %f %f", pid_identifier.c_str(), parameters.X(), parameters.Y(), parameters.Z());
+            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Position PID parameter: %s, Values: %f %f %f", pid_identifier.c_str(), pid_values.X(), pid_values.Y(), pid_values.Z());
 
             for (auto const &joint_element : impl_->joint_controller_->GetJoints())
             {
@@ -141,27 +176,32 @@ namespace gazebo_plugins
                 if(std::regex_search(joint_name, regex))
                 {
                     parameter_has_joint = true;
-                    impl_->joint_controller_->SetPositionPID(joint_name, gazebo::common::PID(parameters.X(), parameters.Y(), parameters.Z()));
+                    impl_->joint_controller_->SetPositionPID(joint_name, gazebo::common::PID(pid_values.X(), pid_values.Y(), pid_values.Z()));
                     impl_->joint_controller_->SetPositionTarget(joint_name, 0.0);
-                    RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Set position PID on joint: %s to P: %f I: %f D: %f", joint_name.c_str(), parameters.X(), parameters.Y(), parameters.Z());
+                    RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Set position PID on joint: %s to P: %f I: %f D: %f", joint_name.c_str(), pid_values.X(), pid_values.Y(), pid_values.Z());
                 }
             }
 
             if(!parameter_has_joint)
             {
-                RCLCPP_WARN(impl_->ros_node_->get_logger(), "No joint found for position pid Parameter %s. Maybe there is a typo or your config is not up to date.", pid_identifier.c_str());
+                RCLCPP_WARN(impl_->ros_node_->get_logger(), "No joint found for position pid identifier %s. Maybe there is a typo or your config is not up to date.", pid_identifier.c_str());
             }
         }
 
         for (auto const &velocity_pid_parameter_element : impl_->velocity_pid_parameters)
         {
-            auto const pid_identifier = velocity_pid_parameter_element.first;
-            auto const regex = std::regex("(^|_|:)"+pid_identifier+"($|_)");
+            auto const pid_identifier = velocity_pid_parameter_element.identifier;
+            auto const pid_values = velocity_pid_parameter_element.pid_values;
 
-            auto const parameters = velocity_pid_parameter_element.second;
+            auto regex = std::regex("(^|_|:)"+pid_identifier+"($|_)");
+            if (!velocity_pid_parameter_element.regex.empty())
+            {
+                regex = std::regex(velocity_pid_parameter_element.regex);
+            }
+
             bool parameter_has_joint = false;
 
-            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Velocity PID parameter: %s, Values: %f %f %f", pid_identifier.c_str(), parameters.X(), parameters.Y(), parameters.Z());
+            RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Velocity PID parameter: %s, Values: %f %f %f", pid_identifier.c_str(), pid_values.X(), pid_values.Y(), pid_values.Z());
 
             for (auto const &joint_element : impl_->joint_controller_->GetJoints())
             {
@@ -171,14 +211,14 @@ namespace gazebo_plugins
                 if(std::regex_search(joint_name, regex))
                 {
                     parameter_has_joint = true;
-                    impl_->joint_controller_->SetVelocityPID(joint_name, gazebo::common::PID(parameters.X(), parameters.Y(), parameters.Z()));
+                    impl_->joint_controller_->SetVelocityPID(joint_name, gazebo::common::PID(pid_values.X(), pid_values.Y(), pid_values.Z()));
                     impl_->joint_controller_->SetVelocityTarget(joint_name, 0.0);
-                    RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Set velocity PID on joint: %s to P: %f I: %f D: %f", joint_name.c_str(), parameters.X(), parameters.Y(), parameters.Z());
+                    RCLCPP_DEBUG(impl_->ros_node_->get_logger(), "Set velocity PID on joint: %s to P: %f I: %f D: %f", joint_name.c_str(), pid_values.X(), pid_values.Y(), pid_values.Z());
                 }
             }
             if(!parameter_has_joint)
             {
-                RCLCPP_WARN(impl_->ros_node_->get_logger(), "No joint found for velocity pid parameter %s. Maybe there is a typo or your config is not up to date.", pid_identifier.c_str());
+                RCLCPP_WARN(impl_->ros_node_->get_logger(), "No joint found for velocity pid identifier %s. Maybe there is a typo or your config is not up to date.", pid_identifier.c_str());
             }
         }
 
