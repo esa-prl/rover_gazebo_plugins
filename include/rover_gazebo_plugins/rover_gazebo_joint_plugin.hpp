@@ -9,7 +9,8 @@ class RoverGazeboJointPluginPrivate;
 /// Set the PID parameters of joints
 ///
 /// The plugin iterates over all joints
-/// and sets the PID if the joint name contains the PID identifier.
+/// and sets the PID if the joint name and the PID identifier meet the regex:
+/// "(^|_|:)pid_identifier($|_)"
 /// The order of the parameters matter, if you define first the PID parameters 
 /// for a group of joints and afterwards for a specific joint of that group,
 /// the first value is overwritten with the second one.
