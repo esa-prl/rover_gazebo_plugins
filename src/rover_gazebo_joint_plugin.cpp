@@ -146,7 +146,7 @@ namespace gazebo_plugins
 
             if(!parameter_has_joint)
             {
-                RCLCPP_WARN(impl_->ros_node_->get_logger(), "No joint found for Parameter %s. Maybe there is a type or your config is not up to date.", pid_identifier.c_str());
+                RCLCPP_WARN(impl_->ros_node_->get_logger(), "No joint found for Parameter %s. Maybe there is a typo or your config is not up to date.", pid_identifier.c_str());
             }
         }
 
@@ -173,7 +173,7 @@ namespace gazebo_plugins
             }
             if(!parameter_has_joint)
             {
-                RCLCPP_WARN(impl_->ros_node_->get_logger(), "No joint found for Parameter %s. Maybe there is a type or your config is not up to date.", pid_identifier.c_str());
+                RCLCPP_WARN(impl_->ros_node_->get_logger(), "No joint found for Parameter %s. Maybe there is a typo or your config is not up to date.", pid_identifier.c_str());
             }
         }
 
