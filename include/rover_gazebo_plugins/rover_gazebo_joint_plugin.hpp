@@ -12,6 +12,7 @@ class RoverGazeboJointPluginPrivate;
 /// and sets the PID if the joint name and the PID identifier meet the regex:
 /// "(^|_|:)pid_identifier($|_)"
 /// If you wanna use another regex, you can set it with the "regex" attribute
+/// Only the specified regex (without the pid_identifier) is used in that case as shown in the example bellow.
 /// The order of the parameters matter, if you define first the PID parameters 
 /// for a group of joints and afterwards for a specific joint of that group,
 /// the first value is overwritten with the second one.
