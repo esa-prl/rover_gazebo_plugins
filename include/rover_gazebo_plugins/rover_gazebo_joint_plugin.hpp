@@ -33,7 +33,7 @@ class RoverGazeboJointPluginPrivate;
         <!-- Parameters for position PIDs -->
         <position_pids>
           <DEP>350.0 0.1 0.0</DEP>
-          <DEP regex"(^|_|:)DEP_LF($|_)">350.0 0.1 0.0</DEP>
+          <DEP regex="(^|_|:)DEP_LF($|_)">350.0 0.1 0.0</DEP>
           <STR>20.0 0.1 0.0</STR>
         </position_pids>
 
