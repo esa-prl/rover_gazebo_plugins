@@ -87,17 +87,6 @@ namespace gazebo_plugins
 
         while (position_pid)
         {
-            // auto regex = position_pid->GetAttribute("regex");
-            // if (regex)
-            // {
-            //     RCLCPP_WARN(this->ros_node_->get_logger(), "Regex argument: %s", regex->GetAsString().c_str());
-            // }
-            
-
-            // auto pid_parameters = position_pid->Get<ignition::math::Vector3d>();
-            // auto pid_name = position_pid->GetName();
-            // this->position_pid_parameters.insert(std::pair<std::string, ignition::math::Vector3d>(pid_name, pid_parameters));
-
             PIDParameter pid_parameter;
             pid_parameter.identifier = position_pid->GetName();
             pid_parameter.pid_values = position_pid->Get<ignition::math::Vector3d>();
@@ -117,10 +106,6 @@ namespace gazebo_plugins
 
         while (velocity_pid)
         {
-            // auto pid_parameters = velocity_pid->Get<ignition::math::Vector3d>();
-            // auto pid_name = velocity_pid->GetName();
-            // this->velocity_pid_parameters.insert(std::pair<std::string, ignition::math::Vector3d>(pid_name, pid_parameters));
-
             PIDParameter pid_parameter;
             pid_parameter.identifier = velocity_pid->GetName();
             pid_parameter.pid_values = velocity_pid->Get<ignition::math::Vector3d>();
