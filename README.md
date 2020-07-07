@@ -2,7 +2,7 @@
 
 ## Overview
 
-This package contains all custom Gazebo 
+This package contains all custom Gazebo plugins 
 
 **Keywords:** gazebo, plugins
 
