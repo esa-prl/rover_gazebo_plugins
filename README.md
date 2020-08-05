@@ -8,13 +8,13 @@ This package contains all custom Gazebo plugins
 
 ### License
 
-The source code is released under a [TODO: Add License]().
+The source code is released under a [GPLv3 license](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
 **Author: Maximilian Ehrhardt<br />
 Affiliation: [European Space Agency](https://www.esa.int/)<br />
 Maintainer: Maximilian Ehrhardt, maximilian.ehrhardt@esa.int**
 
-The rover_gazebo_plugins package has been tested under [ROS2] Eloquent and Ubuntu 18.04. This is research code, expect that it changes often and any fitness for a particular purpose is disclaimed.
+The rover_gazebo_plugins package has been tested under [ROS2] Foxy Fitzroy and Ubuntu 20.04. This is research code, expect that it changes often and any fitness for a particular purpose is disclaimed.
 
 ## Installation
 
