@@ -143,10 +143,10 @@ namespace gazebo_plugins
             auto const pid_identifier = position_pid_parameter_element.identifier;
             auto const pid_values = position_pid_parameter_element.pid_values;
 
-            auto regex = std::regex("(^|_|:)"+pid_identifier+"($|_)");
+            std::regex pid_regex("(^|_)"+pid_identifier+"($|_)");
             if (!position_pid_parameter_element.regex.empty())
             {
-                regex = std::regex(position_pid_parameter_element.regex);
+                pid_regex = std::regex(position_pid_parameter_element.regex);
             }
             
             bool parameter_has_joint = false;
@@ -158,7 +158,7 @@ namespace gazebo_plugins
                 auto const joint_name = joint_element.first;
                 auto const joint = joint_element.second;
 
-                if(std::regex_search(joint_name, regex))
+                if(std::regex_search(joint_name, pid_regex))
                 {
                     parameter_has_joint = true;
                     impl_->joint_controller_->SetPositionPID(joint_name, gazebo::common::PID(pid_values.X(), pid_values.Y(), pid_values.Z()));
